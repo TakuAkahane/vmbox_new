@@ -1,0 +1,9 @@
+# batchサーバのplaybook
+#
+- hosts: batch-servers
+  become: true
+  vars_files:
+    - hosts/{{ location }}/{{ stage }}/group_vars/all.yml
+  roles:
+    - init
+    - ruby

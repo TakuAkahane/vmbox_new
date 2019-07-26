@@ -1,0 +1,75 @@
+
+- name: Include variables for passenger
+  include_vars: 'passenger.yml'
+
+- name: Install required packages
+  yum:
+    state: latest
+    name: "{{ item }}"
+  with_items:
+    - gcc-c++
+
+- name: Check passenger gem installation
+  raw: gem list passenger | grep passenger | sed -e 's/^passenger (\(.\+\))/\1/'
+  register: passenger_installation
+
+- name: Passenger gem should be installed
+  command: bash -lc 'gem install passenger'
+  when: (not passenger_installation.stdout) or (passenger_installation.stdout | version_compare('5.3.4', '<'))
+
+- name: Find passenger root
+  command: bash -lc 'passenger-config --root'
+  register: passenger_root
+
+- name: Install utils
+  command: bash -lc 'yum install -y epel-release yum-utils && yum-config-manager --enable epel && yum clean all'
+
+- name: Add passenger repository
+  command: bash -lc 'curl --fail -sSLO /etc/yum.repos.d/passenger.repo https://oss-binaries.phusionpassenger.com/yum/definitions/el-passenger.repo'
+
+- name: Passenger-module should be installed
+  command: bash -lc 'yum install -y nginx passenger || yum-config-manager --enable cr && sudo yum install -y nginx passenger'
+
+- name: Passenger compile agent
+  command: bash -lc '{{ passenger_root.stdout }}/bin/passenger-config compile-agent --optimize --auto'
+
+- name: Get ruby path
+  command: bash -lc 'which ruby'
+  register: ruby_dir
+
+- name: Check workspace path
+  stat: path={{ workspace }}
+  register: ws
+
+- name: Create workspace directory
+  file: path={{ workspace }} state=directory owner={{ os_user }} group={{ os_group }} mode=0755
+  when: ws.stat.exists != True
+  ignore_errors: true
+
+- name: Passenger should be configured
+  template: src=passenger.j2 dest=/etc/nginx/conf.d/passenger.conf
+  register: passenger_conf
+
+- name: Nginx should be configured
+  template: src=myapp.conf.j2 dest=/etc/nginx/conf.d/myapp.conf
+  register: myapp_conf
+
+- name: Deploy wildcard.assign-navi.jp.crt
+  template:
+    src: templates/wildcard.assign-navi.jp.crt
+    dest: /etc/pki/tls/certs/wildcard.assign-navi.jp.crt
+    owner: root
+    group: root
+    mode: 0444
+
+- name: Deploy wildcard.assign-navi.jp.key
+  template:
+    src: templates/wildcard.assign-navi.jp.key
+    dest: /etc/pki/tls/private/wildcard.assign-navi.jp.key
+    owner: root
+    group: root
+    mode: 0444
+
+- name: Nginx server restart
+  service: name=nginx state=restarted
+  when: passenger_conf.changed or myapp_conf.changed

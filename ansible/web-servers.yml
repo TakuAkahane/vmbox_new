@@ -1,0 +1,11 @@
+# webサーバのplaybook
+#
+- hosts: all
+  become: true
+  vars_files:
+    - hosts/{{ location }}/{{ stage }}/group_vars/all.yml
+  roles:
+    - init
+    - nginx
+    - ruby
+    - passenger

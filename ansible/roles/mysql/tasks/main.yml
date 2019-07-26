@@ -1,0 +1,109 @@
+
+- name: Include variables for mysql
+  include_vars: 'mysql.yml'
+
+- name: Remove mariadb-libs
+  yum:
+    state: absent
+    name: mariadb-libs
+
+- name: Install mysql repository
+  yum:
+    state: present
+      # mysql 5.7
+      name: http://dev.mysql.com/get/mysql57-community-release-el7-7.noarch.rpm
+      validate_certs: yes
+
+- name: Install yum-utils, mysql-python, mysql-community-server, mysql-community-devel
+  yum:
+    state: present
+    name: "{{ item }}"
+  with_items:
+    - yum-utils
+    - libselinux-python
+    - MySQL-python
+    - mysql-community-server
+    - mysql-community-devel
+
+- name: Run and enabled mysqld
+  service:
+    name: mysqld
+    state: started
+    enabled: yes
+
+- name: Check .my.cnf exists
+  stat:
+    path: /root/.my.conf
+  register: mycnf_file
+
+- name: Check version
+  become: yes
+  shell: /sbin/mysqld --version | cut -d" " -f4 | grep "5.7"
+  register: mysql57
+
+- name: Check password existing
+  shell: mysql -u root -proot -N -B -e "SELECT version()"
+  register: password_existing
+  ignore_errors: true
+
+# start mysql5.7 root password setting
+- name: Get temporary password if mysql version is 5.7
+  shell: cat /var/log/mysql.log | grep "temporary password" | awk '{print $11}'
+  register: mysql_tmp_password
+  when: not mycnf_file.stat.exists and not mysql56
+
+- name: Change password validation to the easy way if mysql version is 5.7
+  shell: |
+    mysql -u root -p'{{ mysql_tmp_password.stdout }}' --connect-expired-password -e "SET GLOBAL validate_password_length=4;"
+    mysql -u root -p'{{ mysql_tmp_password.stdout }}' --connect-expired-password -e "SET GLOBAL validate_password_policy=LOW;"
+  when: not mycnf_file.stat.exists and not mysql56 and location == 'local' and stage == 'development'
+
+- name: Change root user password if mysql version is 5.7
+  shell: |
+    mysql -u root -p'{{ mysql_tmp_password.stdout }}' --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '{{ mysql_tmp_password }}';"
+  when: not mycnf_file.stat.exists and not mysql56
+  # end mysql5.7 root password setting
+
+- name: Deploy init .my.cnf
+  template:
+    scr: templates/root.my.cnf.j2
+    dest: /root/.my.cnf
+    owner: root
+    group: root
+    mode: 0644
+  when: not mycnf_file.stat.exists
+
+- name: Deploy changed .my.cnf
+  template:
+    src: templates/my.cnf.j2
+    dest: /etc/my.cnf
+  when: location == 'local' and stage == 'development'
+
+- name: Create root user allowed all network for local environment
+  shell: |
+    mysql -u root -p'{{ mysql_root_password }}' --connect-expired-password -e "grant all priviledge on *.* to root@'%' identified by 'root' with grant option;"
+  when: location == 'local' and stage == 'development'
+
+- name: Remove all anonymous user
+  mysql_user:
+    name: ''
+    state: absent
+    host: localhost
+
+- name: Create database
+  mysql_db:
+    name: "{{ mysql_database }}"
+    state: present
+    encoding: utf8mb4
+
+- name: Create user
+  mysql_user:
+    name: "{{ mysql_user }}"
+    password: "{{ mysql_user_password }}"
+    priv: "{{ mysql_user_priviledge }}"
+    state: present
+
+- name: Restart mysqld
+  service:
+    name: mysqld
+    state: restarted

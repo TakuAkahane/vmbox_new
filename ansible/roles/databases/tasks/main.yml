@@ -1,0 +1,35 @@
+
+- name: Include variables for other databases
+  include_vars: 'databases.yml'
+
+- name: Install Redis
+  become: yes
+  yum: pkg={{ item }} state=present enablerepo=epel
+  with_items:
+    - redis #in remi
+
+- name: Install Java
+  become: yes
+  yum: name={{ item }} state=latest
+  with_items:
+    - java-1.8.0-open.jdk
+
+- name: Install wget
+  yum: name=wget state=latest
+
+- name: Clone dynamodb installer
+  file:
+    path=/tmp/{{ dynamodb_installer }}
+    state=absent
+
+- name: Clone dynamodb installer
+  git:
+    repo: https://github.com/mikesorae/aws_dynamodb_local.git
+    dest: /tmp/{{ dynamodb_installer }}
+    force: true
+
+- name: Install dynamodb local
+  command: sh /tmp/{{ dynamodb_installer }}/installer/install.sh
+
+- name: Make sure dynamodb started
+  service: name=aws_dynamodb_local state=started enabled=yes

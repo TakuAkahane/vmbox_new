@@ -1,0 +1,9 @@
+---
+- hosts: all
+  become: true
+  roles:
+    - init
+    - apache
+    - mysql
+    - ruby
+    - passenger

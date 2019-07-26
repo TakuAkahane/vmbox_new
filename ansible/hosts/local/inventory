@@ -1,0 +1,10 @@
+# ローカル（個人作業）環境のインベントリ
+#
+[web-server]
+192.168.33.50
+[db-server]
+192.168.33.50
+[all:vars]
+location=local
+stage=development
+docker=no

@@ -1,0 +1,35 @@
+
+- name: Install base commands
+  yum: name={{ item }} state=latest
+  with_items:
+  - sudo
+  - wget
+  - bzip2
+  - which
+  - openssh-clients
+  - openssh-server
+  - bind-utils
+  - zip
+  - gzip
+  - cronie-noanacron
+  - ipa-gothic-fonts
+  - ipa-mincho-fonts
+
+- name: Remove mariadb etc..
+  yum: name={{ item }} state=absent
+  with_items:
+    - mariadb-libs
+    - chronyd
+
+- name: Reinstall glibc-common
+  become: yes
+  shell: bash -lc "yum -y install glibc-common; localedef -i en_US -f UTF-8 en_US.UTF-8"
+  args:
+    warn: False
+
+- name: Be sure crond is running and enabled
+  service: name=crond state=started enabled=yes
+
+- name: Enable sshd
+  become: yes
+  shell: bash -lc "sed -ri 's/^#PermitRootLogin yes/' /etc/ssh/sshd_config; sed -ri 's/PasswordAuthentication no/' /etc/ssh/sshd_config; sed -ri 's/^(root):[^:]*:(.*)$/\1:*:\2/' /etc/shadow;"

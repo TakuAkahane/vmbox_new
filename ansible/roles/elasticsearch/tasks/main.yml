@@ -1,0 +1,53 @@
+
+- name: Include variables for elasticsearch
+  include_vars: 'elasticsearch.yml'
+
+- name: Install required package
+  yum:
+    state: latest
+    name: "{{ item }}"
+  with_items:
+    - java-1.8.0-openjdk
+
+- name: Import GPG KEY
+  command: rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+
+- name: Deploy yum repo
+  template:
+    src: templates/elasticsearch.repo.j2
+    dest: /etc/yum.repos.d/elasticsearch.repo
+    owner: root
+    group: root
+    mode: 0444
+
+- name: Install elasticsearch and kibana
+  yum:
+    state: latest
+    name: "{{ item }}"
+  with_items:
+    - elasticsearch
+    - kibana
+
+- name: Install analysis-icu
+  shell: |
+    /usr/share/elasticsearch/bin/elasticsearch-plugin remove analysis-icu
+    /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
+
+- name: Install kuromoji
+  shell: |
+    /usr/share/elasticsearch/bin/elasticsearch-plugin remove analysis-kuromoji
+    /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-kuromoji
+
+- name: Enable elasticsearch
+  service:
+    name: elasticsearch
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Enable kibana
+  service:
+    name: kibana
+    enabled: yes
+    state: started
+    daemon_reload: yes

@@ -1,0 +1,11 @@
+# dbサーバのplaybook
+#
+- hosts: db-servers
+  become: true
+  vars_files:
+    - hosts/{{ location }}/{{ stage }}/group_vars/all.yml
+  roles:
+    - { role: init, when: location != 'local' }
+    - { role: mysql, when: location == 'local' }
+    - { role: elasticsearch, when: location == 'local' }
+    - { role: databases, when: location == 'local' }

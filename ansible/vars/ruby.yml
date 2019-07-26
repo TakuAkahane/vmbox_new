@@ -1,0 +1,13 @@
+ruby_version: 2.5.3
+rails_version: 5.2.2
+rake_version: 12.3.2
+bash_profile_comment: '# add rbenv path'
+distination: /usr/local/rbenv
+system_gem_path: /usr/local/rbenv/shims/gem
+shell_env: '\n
+  {{ bash_profile_comment }}\n
+  export RBENV_ROOT=\"{{ distination }}\"\n
+  export PATH=\"{{ distination }}/bin:\$PATH\"\n
+  export PATH=\"{{ distination }}/shims:\$PATH\"\n
+  eval \"\$(rbenv init -)\"\n
+'

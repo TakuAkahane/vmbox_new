@@ -1,0 +1,147 @@
+
+- name: Include variable for ruby
+  include_vars: "ruby.yml"
+
+- name: Install ruby dependency package
+  become: yes
+  yum: name={{ item }} state=latest
+  with_items:
+    - gcc
+    - zlib-devel
+    - openssl-devel
+    - libffi-devel
+    - libxml2-devel
+    - libxslt-devel
+    - curl-devel
+    - apr-devel
+    - apr-util-devel
+    - readline-devel
+    - ImageMagick
+    - ImageMagick-devel
+    - sqlite-devel
+
+- name: Install epel repo
+  yum: name=epel-release state=latest
+
+- name: Install node.js
+  yum: pkg={{ item }} state=present enablerepo=epel
+  with_items:
+    - gperftools-libs #in epel dependency
+    - libunwind #in epql dependency
+    - libunwind-devel #in epel ??
+    - nodejs
+
+- name: Install sass
+  npm:
+    name: node-sass
+    global: yes
+
+- name: Install yarn repo
+  shell: |
+    wget https://dl.yarnpkg.com/rpm/yarn.repo -O /etc/yum.repos.d/yarn.repo
+    curl --silent --location https://rpm.nodesource.com/setup_6.x | bash -
+  become: yes
+
+- name: Install yarn
+  yum: pkg={{ item }} state=present enablerepo=yarn
+  with_items:
+    - yarn
+
+- name: Download rbenv
+  git: >
+    repo=https://github.com/sstephenson/rbenv.git
+    dest={{ distination }}
+  become: yes
+  ignore_errors: true
+
+- name: Download ruby-build
+  git: >
+    repo=https://github.com/sstephenson/ruby-build.git
+    dest={{ distination }}/plugins/ruby-build/
+  become: yes
+  ignore_errors: true
+
+- name: Install rbenv
+  shell: |
+    cd {{ distination }}/plugins/ruby-build
+    ./install.sh;
+  become: yes
+
+- name: Grep .rbenv
+  command: grep '{{ bash_profile_comment }}' /etc/profile.d/rbenv.sh
+  register: grep_rbenv_result
+  become: yes
+  ignore_errors: true
+
+- name: Add rbenv bin path for global
+  shell: |
+    echo -e "{{ shell_env }}" >> /etc/profile.d/rbenv.sh
+  when: not grep_rbenv_result.rc == 0
+
+- name: Grep ruby
+  shell: |
+    bash -lc "ruby -b | grep {{ ruby_version }}"
+  register: grep_rbenv_result
+  become: yes
+  ignore_errors: true
+
+- name: Install ruby
+  shell: |
+    bash -lc "rbenv install {{ ruby_version }}"
+    bash -lc "rbenv rehash"
+    bash -lc "rbenv global {{ ruby_version }}"
+  become: yes
+  environment:
+    RBENV_ROOT: '{{ distination }}'
+  when: not grep_rbenv_result.rc == 0
+
+- name: Install bundler
+  become: yes
+  gem: >
+    name=bundler
+    user_install=no
+    state=latest
+    executable={{ system_gem_path }}
+
+- name: Install rails
+  become: yes
+  gem: >
+    name=rails
+    user_install=no
+    version={{ rails_version }}
+    state=present
+    executable={{ system_gem_path}}
+
+- name: Install rake
+  become: yes
+  gem: >
+    name=rake
+    user_install=no
+    version={{ rake_version}}
+    state=present
+    executable={{ system_gem_path }}
+
+- name: Install mysql repository
+  yum:
+    state: present
+    # mysql 5.7
+    name: http://dev.mysql.com/get/mysql57-community-release-el7-7.noarch.rpm
+    validate_certs: yes
+
+- name: Install mysql-community-devel
+  yum:
+    state: present
+    name: "{{ item }}"
+  with_items:
+    - mysql-community-devel
+
+- name: Install aws-sdk and others..
+  become: yes
+  gem: >
+    name={{ item }}
+    user_install=no
+    state=latest
+    executable={{ system_gem_path }}
+  with_items:
+    - aws-sdk
+    - mysql2

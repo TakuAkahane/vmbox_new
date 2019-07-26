@@ -1,0 +1,44 @@
+# hosts/local/test/all.yml
+#
+ssh_remote_user: root
+os_user: vagrant
+os_group: vagrant
+host_name: 'localhost'
+internet_url: 'http://192.168.33.50'
+internet_port: '80'
+
+# passenger等
+workspace: '/var/www/applications/workspace'
+application_root: '/var/www/applications/workspace/anavi/real-estate-community'
+
+# mysql
+mysql_root_password: root
+mysql_database: real-estate-community_development
+mysql_user: vagrant
+mysql_user_password: vagrant
+mysql_user_privillege: '*.*:ALL,GRANT'
+
+## my.cnf
+# GENERAL
+binlog_cache_size: "binlog_cache_size = 1M"
+read_rnd_buffer_size: "read_rnd_buffer_size = 16M"
+# SAFETY
+max_allowed_packet: "max_allowed_packet = 32M"
+max_connect_errors: "max_connect_errors = 10000"
+sql_mode: "sql_mode = NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES"
+# BINARY LOGGING
+log_bin: ""
+expire_logs_days: ""
+binlog_format: "binlog_format = MIXED"
+# CACHES AND LIMITS
+tmp_table_size: "tmp_table_size = 64M"
+max_heap_table_size: "max_heap_table_size = 64M"
+query_cache_size: "query_cache_size = 64M"
+query_cache_limit: "query_cache_limit = 8M"
+# INNODB
+innodb_buffer_pool_size: innodb_buffer_pool_size = 1G
+# Replication
+server_id: "#server-id = 102001050"
+
+# Elasticsearch
+elasticsearch_host: 'http://10.100.0.130:9200/'

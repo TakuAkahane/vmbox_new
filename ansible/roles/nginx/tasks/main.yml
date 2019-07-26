@@ -1,0 +1,102 @@
+
+- name: Include variables for nginx
+  include_vars: 'nginx.yml'
+
+- name: Install openssl
+  become: yes
+  yum: name=openssl state=latest
+
+- name: Install epel repo
+  become: yes
+  yum:
+    state: present
+    name: epel-release
+    validate_certs: yes
+
+- name: Edit repo
+  become: yes
+  replace:
+    dest: /etc/yum.repos.d/epel.repo
+    regexp: 'enabled=0'
+    replace: 'enabled=1'
+
+- name: Install utils
+  command: bash -lc "yum install -y epel-release yum-utils && yum-config-manager --enabled epel && yum clean all"
+
+- name: Add passenger repository
+  command: bash -lc "curl --fail -sSLO /etc/yum.repos.d/passenger.repo https://oss-binaries.phusionpassenger.com/yum/definitions/el-passenger.repo"
+
+- name: Install nginx HTTP server
+  become: yes
+  yum: name=nginx state=latest enablerepo=epel
+
+- name: Install nginx HTTP server nginx modules
+  become: yes
+  yum: name={{ item }} state=latest enablerepo=epel
+  with_items:
+    - nginx-mod-http-geoip
+    - nginx-mod-http-image-filter
+    - nginx-mod-http-xslt-filter
+    - nginx-mod-mail
+    - nginx-mod-stream
+
+- name: Install node.js
+  yum: name=epel-release state=latest
+  yum: pkg={{ item }} state=present enablerepo=epel
+  with_items:
+    - gperftools-libs #in epel dependency
+    - libunwind #in epel dependency
+    - libunwind-devel #in epel ??
+    - nodejs
+
+- name: Install sass
+  npm:
+    name: node-sass
+    global: yes
+
+- name: Chmod log directory
+  file:
+    path: /var/log/nginx
+    owner: "{{ os_user }}"
+    group: "{{ os_group }}"
+    mode: 0755
+
+- name: Delete passenger.conf
+  file:
+    path=/etc/nginx/conf.d/passenger.conf
+    state=absent
+
+- name: Create directory
+  file:
+    path: /var/www/html
+    state: directory
+    owner: "{{ os_user }}"
+    group: "{{ os_group }}"
+    mode: 0755
+
+- name: Create default file
+  template:
+    src: templates/index.html.j2
+    dest: /var/www/html/index.html
+    owner: root
+    group: root
+    mode: 0444
+
+- name: Deploy nginx.cnf
+  template:
+    src: temlates/nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: 0444
+
+- name: Deploy myapp.cnf
+  templates:
+    src: templates/myapp.conf.j2
+    dest: /etc/nginx/conf.d/myapp.conf
+    owner: root
+    group: root
+    mode: 0444
+
+- name: Be sure nginx is running and enabled
+  service: name=nginx state=started enabled=yes
